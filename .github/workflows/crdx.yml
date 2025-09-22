@@ -22,7 +22,7 @@ jobs:
           # 1. Go to: https://remotedesktop.google.com/headless
           # 2. Click "Begin", "Next", and "Authorize".
           # 3. Copy the command for "Windows (CMD)" and ONLY replace the --code="..." part below.
-          & "${env:ProgramFiles(x86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" --code="4/0AVGzR1BUrNqdBS95jiTnrCM83x1HRLnPc5WiDJ5nDvgw3ko2m3ka3p8oi1O4jwDZRXx4_g" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name="$env:COMPUTERNAME" --pin=112233
+          & "${env:ProgramFiles(x86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" --code="4/0AVGzR1B7ZxgsOhQbZ78A1iAuFUszq4ZjzBEJz4gYM7BJgO0VwXyURSeTVLb0xNK84HtI4g" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name="$env:COMPUTERNAME" --pin=112233
 
       - name: Time Counter
         run: |
