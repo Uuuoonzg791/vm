@@ -1,4 +1,5 @@
 name: CRD
+
 on:
   # This section configures the manual trigger to ask for an input.
   workflow_dispatch:
@@ -16,15 +17,16 @@ jobs:
 
     steps:
       - name: Download & Install Chrome Remote Desktop
+        # CORRECTED URL: 'chromeremotedesktop' instead of 'chromotedesktop'
         run: |
-          Invoke-WebRequest -Uri "https://dl.google.com/edgedl/chrome-remote-desktop/chromotedesktophost.msi" -OutFile "chromeremotedesktophost.msi"
+          Invoke-WebRequest -Uri "https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi" -OutFile "chromeremotedesktophost.msi"
           Start-Process msiexec.exe -Wait -ArgumentList '/i chromeremotedesktophost.msi /quiet'
 
       - name: Start Chrome Remote Desktop Host
-        # The --code argument now uses the input provided when the workflow was started.
-        # The input is accessed via the 'github.event.inputs' context.
+        # CORRECTED PATH: '${env:ProgramFiles(x86)}' instead of '${env:ProgramFiles(x88)}'
+        # The --code argument uses the input provided when the workflow was started.
         run: |
-          & "${env:ProgramFiles(x88)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" --code="${{ github.event.inputs.auth_code }}" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name="$env:COMPUTERNAME" --pin=112233
+          & "${env:ProgramFiles(x86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" --code="${{ github.event.inputs.auth_code }}" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name="$env:COMPUTERNAME" --pin=112233
 
       - name: Time Counter
         run: |
