@@ -1,4 +1,4 @@
-name: rd
+name: rdx5
 
 on:
   workflow_dispatch:
