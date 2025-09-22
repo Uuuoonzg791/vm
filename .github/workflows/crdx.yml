@@ -1,7 +1,12 @@
 name: CRD
-
 on:
+  # This section configures the manual trigger to ask for an input.
   workflow_dispatch:
+    inputs:
+      auth_code:
+        description: 'Chrome Remote Desktop Auth Code'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -12,17 +17,14 @@ jobs:
     steps:
       - name: Download & Install Chrome Remote Desktop
         run: |
-          Invoke-WebRequest -Uri "https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi" -OutFile "chromeremotedesktophost.msi"
+          Invoke-WebRequest -Uri "https://dl.google.com/edgedl/chrome-remote-desktop/chromotedesktophost.msi" -OutFile "chromeremotedesktophost.msi"
           Start-Process msiexec.exe -Wait -ArgumentList '/i chromeremotedesktophost.msi /quiet'
 
       - name: Start Chrome Remote Desktop Host
-        # This step now includes the --pin argument to set the PIN non-interactively.
+        # The --code argument now uses the input provided when the workflow was started.
+        # The input is accessed via the 'github.event.inputs' context.
         run: |
-          # IMPORTANT: You must generate a new authorization code for EACH run.
-          # 1. Go to: https://remotedesktop.google.com/headless
-          # 2. Click "Begin", "Next", and "Authorize".
-          # 3. Copy the command for "Windows (CMD)" and ONLY replace the --code="..." part below.
-          & "${env:ProgramFiles(x86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" --code="4/0AVGzR1B7ZxgsOhQbZ78A1iAuFUszq4ZjzBEJz4gYM7BJgO0VwXyURSeTVLb0xNK84HtI4g" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name="$env:COMPUTERNAME" --pin=112233
+          & "${env:ProgramFiles(x88)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" --code="${{ github.event.inputs.auth_code }}" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name="$env:COMPUTERNAME" --pin=112233
 
       - name: Time Counter
         run: |
