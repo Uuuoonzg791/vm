@@ -7,7 +7,7 @@ jobs:
   build:
     name: Start Building...
     runs-on: windows-latest
-    timeout-minutes: 360  # Set to 6 hours (360 minutes)
+    timeout-minutes: 360
 
     steps:
       - name: Download & Install Chrome Remote Desktop
@@ -16,12 +16,14 @@ jobs:
           Start-Process msiexec.exe -Wait -ArgumentList '/i chromeremotedesktophost.msi /quiet'
 
       - name: Start Chrome Remote Desktop Host
+        # This step now uses PowerShell's call operator (&) to correctly handle the path with spaces.
+        # It also uses PowerShell syntax for environment variables ($env:...).
         run: |
-          # IMPORTANT: You must generate a new authorization code for each run.
+          # IMPORTANT: You must generate a new authorization code for EACH run.
           # 1. Go to: https://remotedesktop.google.com/headless
           # 2. Click "Begin", "Next", and "Authorize".
-          # 3. Copy the command for "Windows (CMD)" and paste the new code below.
-          cmd /c "%PROGRAMFILES(X86)%\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" --code="4/0AVGzR1BUrNqdBS95jiTnrCM83x1HRLnPc5WiDJ5nDvgw3ko2m3ka3p8oi1O4jwDZRXx4_g" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name=%COMPUTERNAME%
+          # 3. Copy the command for "Windows (CMD)" and ONLY replace the --code="..." part below.
+          & "${env:ProgramFiles(x86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" --code="4/0AVGzR1BUrNqdBS95jiTnrCM83x1HRLnPc5WiDJ5nDvgw3ko2m3ka3p8oi1O4jwDZRXx4_g" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name="$env:COMPUTERNAME"
 
       - name: Time Counter
         run: |
