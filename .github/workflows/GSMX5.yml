@@ -1,4 +1,5 @@
-name: GSMX5
+name: gsmx5
+
 on:
   workflow_dispatch:
     inputs:
@@ -23,9 +24,10 @@ jobs:
         run: |
           Invoke-WebRequest -Uri "https://getscreen.me/downloads/getscreen.msi" -OutFile "getscreen.msi"
 
-      - name: Install, Configure, and Start getscreen.me Agent
+      - name: Install and Start getscreen.me Agent
         run: |
           # --- INSTALLATION ---
+          # This step unpacks the files and writes the configuration.
           $COMPUTER_NAME = "GH-Runner-${{ matrix.runner_id }}-${env:COMPUTERNAME}"
           $CONFIG_STRING = "name='$COMPUTER_NAME' language=en autostart=true nonadmin=true control=true file_transfer=true disable_confirmation=true auto_wallpaper_hide=true"
           $MSI_ARGS = "/i getscreen.msi /qn REGISTER='${{ github.event.inputs.register_email }}' CONFIG=`"$CONFIG_STRING`""
@@ -33,45 +35,42 @@ jobs:
           Start-Process msiexec.exe -Wait -ArgumentList $MSI_ARGS
           Write-Host "Installation command completed."
 
-          # --- POST-INSTALLATION & VERIFICATION (CRITICAL FIXES) ---
+          # --- LAUNCH AND VERIFY (CRITICAL FIX) ---
           
-          # 1. Add firewall rule for the agent executable.
+          # 1. Define the path to the executable.
           $AGENT_EXECUTABLE = "${env:ProgramFiles(x86)}\GetScreen\getscreen.exe"
+          
+          # 2. Add firewall rule. This is still important.
           Write-Host "Adding firewall rule for $AGENT_EXECUTABLE"
           New-NetFirewallRule -DisplayName "Allow getscreen.me Agent" -Direction Outbound -Program $AGENT_EXECUTABLE -Action Allow
           
-          # 2. Dynamically find the service by pattern and start it. This is the key fix.
-          Write-Host "Searching for the getscreen service..."
-          $service = Get-Service -Name "*getscreen*" -ErrorAction SilentlyContinue
+          # 3. Launch the agent executable directly as a background process.
+          # We no longer search for a service.
+          Write-Host "Starting the agent executable: $AGENT_EXECUTABLE"
+          Start-Process -FilePath $AGENT_EXECUTABLE
           
-          if ($null -eq $service) {
-              Write-Error "FATAL: Could not find any service with 'getscreen' in the name after installation."
-              exit 1
-          }
-          
-          Write-Host "Found service: $($service.Name). Starting it now..."
-          Start-Service -InputObject $service
-          
-          # 3. Wait for the service to initialize and connect to the dashboard.
+          # 4. Wait for the agent to initialize and connect to the dashboard.
           Write-Host "Waiting 20 seconds for the agent to register online..."
           Start-Sleep -Seconds 20
           
-          # 4. Verify that the service is running correctly.
-          $service.Refresh() # Refresh the service object to get the latest status
-          if ($service.Status -ne "Running") {
-              Write-Error "The service $($service.Name) failed to start. Current status: $($service.Status)"
+          # 5. Verify that the PROCESS is running.
+          $process = Get-Process -Name "getscreen" -ErrorAction SilentlyContinue
+          if ($null -eq $process) {
+              Write-Error "The getscreen.exe process failed to start or crashed."
               exit 1
           } else {
-              Write-Host "Successfully verified that the service $($service.Name) is running."
+              Write-Host "Successfully verified that the getscreen.exe process is running with ID $($process.Id)."
           }
 
       - name: Keep Alive
+        # This step is now more important than ever, as it keeps the runner
+        # and the background getscreen.exe process alive.
         run: |
           $duration = 21600
           $interval = 300
           $endTime = (Get-Date).AddSeconds($duration)
           Write-Host "Starting keep-alive loop for 6 hours..."
-          while ((Get-Date) -lt $endTime) {
+          while ((Get-Date).AddSeconds(0) -lt $endTime) {
             Write-Host "Workflow for runner ${{ matrix.runner_id }} is still alive at $(Get-Date)"
             Start-Sleep -Seconds $interval
           }
