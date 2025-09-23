@@ -1,7 +1,6 @@
 name: CRDX5
 
 on:
-  # This section configures the manual trigger to ask for 5 separate inputs.
   workflow_dispatch:
     inputs:
       auth_code_1:
@@ -27,12 +26,12 @@ on:
 
 jobs:
   build:
-    # Use a strategy matrix to create and run 5 parallel jobs.
     strategy:
+      # This is the key change: it prevents other jobs from being cancelled if one fails.
+      fail-fast: false
       matrix:
         runner_id: [1, 2, 3, 4, 5]
 
-    # Dynamically name each job based on its matrix ID for clarity.
     name: Start Runner ${{ matrix.runner_id }}
     runs-on: windows-latest
     timeout-minutes: 360
@@ -90,7 +89,7 @@ jobs:
           $endTime = (Get-Date).AddSeconds($duration)
           Write-Host "Starting keep-alive loop for 6 hours..."
           while ((Get-Date) -lt $endTime) {
-            Write-Host "Workflow is still alive at $(Get-Date)"
+            Write-Host "Workflow for runner ${{ matrix.runner_id }} is still alive at $(Get-Date)"
             Start-Sleep -Seconds $interval
           }
           Write-Host "Keep-alive completed after 6 hours."
