@@ -1,0 +1,96 @@
+name: CRDX5
+
+on:
+  # This section configures the manual trigger to ask for 5 separate inputs.
+  workflow_dispatch:
+    inputs:
+      auth_code_1:
+        description: 'Auth Code for Runner 1'
+        required: true
+        type: string
+      auth_code_2:
+        description: 'Auth Code for Runner 2'
+        required: true
+        type: string
+      auth_code_3:
+        description: 'Auth Code for Runner 3'
+        required: true
+        type: string
+      auth_code_4:
+        description: 'Auth Code for Runner 4'
+        required: true
+        type: string
+      auth_code_5:
+        description: 'Auth Code for Runner 5'
+        required: true
+        type: string
+
+jobs:
+  build:
+    # Use a strategy matrix to create and run 5 parallel jobs.
+    strategy:
+      matrix:
+        runner_id: [1, 2, 3, 4, 5]
+
+    # Dynamically name each job based on its matrix ID for clarity.
+    name: Start Runner ${{ matrix.runner_id }}
+    runs-on: windows-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Download & Install Chrome Remote Desktop
+        run: |
+          Invoke-WebRequest -Uri "https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi" -OutFile "chromeremotedesktophost.msi"
+          Start-Process msiexec.exe -Wait -ArgumentList '/i chromeremotedesktophost.msi /quiet'
+
+      - name: Start Chrome Remote Desktop Host
+        run: |
+          # Select the correct auth code based on the runner's ID from the matrix.
+          $AUTH_CODE = ""
+          if ('${{ matrix.runner_id }}' -eq '1') {
+            $AUTH_CODE = "${{ github.event.inputs.auth_code_1 }}"
+          }
+          if ('${{ matrix.runner_id }}' -eq '2') {
+            $AUTH_CODE = "${{ github.event.inputs.auth_code_2 }}"
+          }
+          if ('${{ matrix.runner_id }}' -eq '3') {
+            $AUTH_CODE = "${{ github.event.inputs.auth_code_3 }}"
+          }
+          if ('${{ matrix.runner_id }}' -eq '4') {
+            $AUTH_CODE = "${{ github.event.inputs.auth_code_4 }}"
+          }
+          if ('${{ matrix.runner_id }}' -eq '5') {
+            $AUTH_CODE = "${{ github.event.inputs.auth_code_5 }}"
+          }
+
+          # Create a unique name for each runner to identify it in Chrome Remote Desktop.
+          $COMPUTER_NAME = "GH-Runner-${{ matrix.runner_id }}-${env:COMPUTERNAME}"
+
+          # Start the host process with the selected code and unique name.
+          & "${env:ProgramFiles(x86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" --code="$AUTH_CODE" --redirect-url="https://remotedesktop.google.com/_/oauthredirect" --name="$COMPUTER_NAME" --pin=112233
+
+      - name: Time Counter
+        run: |
+          # This timer runs independently in each of the 5 parallel jobs.
+          $startTime = Get-Date
+          $endTime = $startTime.AddSeconds(21600)
+          Write-Host "Timer started at $startTime"
+          while ((Get-Date) -lt $endTime) {
+            $elapsed = (Get-Date) - $startTime
+            Write-Host "Elapsed time: $($elapsed.Hours)h $($elapsed.Minutes)m $($elapsed.Seconds)s"
+            Start-Sleep -Seconds 60
+          }
+          Write-Host "Timer completed after 6 hours at $(Get-Date)"
+
+      - name: Keep Alive
+        run: |
+          # This keep-alive also runs independently in each job.
+          $duration = 21600
+          $interval = 300
+          $endTime = (Get-Date).AddSeconds($duration)
+          Write-Host "Starting keep-alive loop for 6 hours..."
+          while ((Get-Date) -lt $endTime) {
+            Write-Host "Workflow is still alive at $(Get-Date)"
+            Start-Sleep -Seconds $interval
+          }
+          Write-Host "Keep-alive completed after 6 hours."
