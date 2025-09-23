@@ -11,7 +11,6 @@ on:
 jobs:
   build:
     strategy:
-      # This ensures that if one runner fails to install, the others will continue running.
       fail-fast: false
       matrix:
         runner_id: [1, 2, 3, 4, 5]
@@ -22,16 +21,16 @@ jobs:
 
     steps:
       - name: Download getscreen.me Agent
-        # CORRECTED URL: The download path is now /downloads/ instead of /bin/
         run: |
           Invoke-WebRequest -Uri "https://getscreen.me/downloads/getscreen.msi" -OutFile "getscreen.msi"
 
-      - name: Install and Configure getscreen.me Agent
+      - name: Install, Configure, and Start getscreen.me Agent
         run: |
+          # --- INSTALLATION ---
           # Create a unique name for each runner to identify it in your getscreen.me dashboard.
           $COMPUTER_NAME = "GH-Runner-${{ matrix.runner_id }}-${env:COMPUTERNAME}"
           
-          # Prepare the configuration string. This includes the dynamic name and other useful defaults for unattended access.
+          # Prepare the configuration string.
           $CONFIG_STRING = "name='$COMPUTER_NAME' language=en autostart=true nonadmin=true control=true file_transfer=true disable_confirmation=true auto_wallpaper_hide=true"
           
           # Construct the full argument list for the installer.
@@ -40,6 +39,31 @@ jobs:
           # Execute the silent installation.
           Write-Host "Starting installation with arguments: $MSI_ARGS"
           Start-Process msiexec.exe -Wait -ArgumentList $MSI_ARGS
+          Write-Host "Installation command completed."
+
+          # --- POST-INSTALLATION & VERIFICATION (CRITICAL FIXES) ---
+          
+          # 1. Add a firewall rule to ensure the agent can connect out.
+          $AGENT_EXECUTABLE = "${env:ProgramFiles(x86)}\GetScreen\getscreen.exe"
+          Write-Host "Adding firewall rule for $AGENT_EXECUTABLE"
+          New-NetFirewallRule -DisplayName "Allow getscreen.me Agent" -Direction Outbound -Program $AGENT_EXECUTABLE -Action Allow
+          
+          # 2. Explicitly start the service to ensure it is running.
+          Write-Host "Starting the getscreen service..."
+          Start-Service getscreen
+          
+          # 3. Wait for 20 seconds to give the service time to initialize and register online.
+          Write-Host "Waiting 20 seconds for the agent to connect to the dashboard..."
+          Start-Sleep -Seconds 20
+          
+          # 4. Verify that the service is running correctly. This will cause the job to fail if it's not.
+          $service = Get-Service getscreen
+          if ($service.Status -ne "Running") {
+              Write-Error "The getscreen service failed to start. Current status: $($service.Status)"
+              exit 1
+          } else {
+              Write-Host "Successfully verified that the getscreen service is running."
+          }
 
       - name: Keep Alive
         run: |
@@ -52,4 +76,4 @@ jobs:
             Write-Host "Workflow for runner ${{ matrix.runner_id }} is still alive at $(Get-Date)"
             Start-Sleep -Seconds $interval
           }
-          Write-Host "Keep-alive completed after 6 hours."
+          Write-Host "Keep-alive completed after 6 hours."```
