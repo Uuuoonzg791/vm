@@ -1,5 +1,4 @@
 name: GSMX5
-
 on:
   workflow_dispatch:
     inputs:
@@ -27,47 +26,47 @@ jobs:
       - name: Install, Configure, and Start getscreen.me Agent
         run: |
           # --- INSTALLATION ---
-          # Create a unique name for each runner to identify it in your getscreen.me dashboard.
           $COMPUTER_NAME = "GH-Runner-${{ matrix.runner_id }}-${env:COMPUTERNAME}"
-          
-          # Prepare the configuration string.
           $CONFIG_STRING = "name='$COMPUTER_NAME' language=en autostart=true nonadmin=true control=true file_transfer=true disable_confirmation=true auto_wallpaper_hide=true"
-          
-          # Construct the full argument list for the installer.
           $MSI_ARGS = "/i getscreen.msi /qn REGISTER='${{ github.event.inputs.register_email }}' CONFIG=`"$CONFIG_STRING`""
-          
-          # Execute the silent installation.
           Write-Host "Starting installation with arguments: $MSI_ARGS"
           Start-Process msiexec.exe -Wait -ArgumentList $MSI_ARGS
           Write-Host "Installation command completed."
 
           # --- POST-INSTALLATION & VERIFICATION (CRITICAL FIXES) ---
           
-          # 1. Add a firewall rule to ensure the agent can connect out.
+          # 1. Add firewall rule for the agent executable.
           $AGENT_EXECUTABLE = "${env:ProgramFiles(x86)}\GetScreen\getscreen.exe"
           Write-Host "Adding firewall rule for $AGENT_EXECUTABLE"
           New-NetFirewallRule -DisplayName "Allow getscreen.me Agent" -Direction Outbound -Program $AGENT_EXECUTABLE -Action Allow
           
-          # 2. Explicitly start the service to ensure it is running.
-          Write-Host "Starting the getscreen service..."
-          Start-Service getscreen
+          # 2. Dynamically find the service by pattern and start it. This is the key fix.
+          Write-Host "Searching for the getscreen service..."
+          $service = Get-Service -Name "*getscreen*" -ErrorAction SilentlyContinue
           
-          # 3. Wait for 20 seconds to give the service time to initialize and register online.
-          Write-Host "Waiting 20 seconds for the agent to connect to the dashboard..."
+          if ($null -eq $service) {
+              Write-Error "FATAL: Could not find any service with 'getscreen' in the name after installation."
+              exit 1
+          }
+          
+          Write-Host "Found service: $($service.Name). Starting it now..."
+          Start-Service -InputObject $service
+          
+          # 3. Wait for the service to initialize and connect to the dashboard.
+          Write-Host "Waiting 20 seconds for the agent to register online..."
           Start-Sleep -Seconds 20
           
-          # 4. Verify that the service is running correctly. This will cause the job to fail if it's not.
-          $service = Get-Service getscreen
+          # 4. Verify that the service is running correctly.
+          $service.Refresh() # Refresh the service object to get the latest status
           if ($service.Status -ne "Running") {
-              Write-Error "The getscreen service failed to start. Current status: $($service.Status)"
+              Write-Error "The service $($service.Name) failed to start. Current status: $($service.Status)"
               exit 1
           } else {
-              Write-Host "Successfully verified that the getscreen service is running."
+              Write-Host "Successfully verified that the service $($service.Name) is running."
           }
 
       - name: Keep Alive
         run: |
-          # This keep-alive runs independently in each job to keep the session active.
           $duration = 21600
           $interval = 300
           $endTime = (Get-Date).AddSeconds($duration)
@@ -76,4 +75,4 @@ jobs:
             Write-Host "Workflow for runner ${{ matrix.runner_id }} is still alive at $(Get-Date)"
             Start-Sleep -Seconds $interval
           }
-          Write-Host "Keep-alive completed after 6 hours."```
+          Write-Host "Keep-alive completed after 6 hours."
